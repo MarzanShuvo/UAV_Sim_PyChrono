@@ -6,6 +6,7 @@
 ## Introduction
 
 The **UAV_Sim_PyChrono** is a high-fidelity PyChrono-based simulator designed for multi-rotor UAVs (Uncrewed Aerial Vehicles).
+To the developers' knowledge, this is the first implementation of PyChrono in the context of control systems design for autonomous UAVs.
 
 
 ## Outlook on the Control Architecture
