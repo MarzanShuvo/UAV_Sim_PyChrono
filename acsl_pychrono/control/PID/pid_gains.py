@@ -20,9 +20,15 @@ class PIDGains:
     self.size_DATA = 50
     
     # **Translational** PID parameters 
-    self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
-    self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
-    self.KI_tran = np.matrix(1 * np.diag([1,1,1]))
+    # self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
+    # self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
+    # self.KI_tran = np.matrix(1 * np.diag([1,1,1]))
+
+    # solution for best position tracking
+    self.KP_tran = np.matrix(1 * np.diag([135.6,57.7,128.2]))
+    self.KD_tran = np.matrix(1 * np.diag([64.3,90.2,7.8]))
+    self.KI_tran = np.matrix(1 * np.diag([97.2,43.4,57.3]))
+    self.drag_comp = np.matrix(1 * np.diag([48.9,60.5,57.4]))
 
     # **Rotational** PID parameters
     self.KP_rot = np.matrix(1 * np.diag([100,100,50]))

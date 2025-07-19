@@ -107,6 +107,23 @@ class PID(Control):
     """
     velocity_error = self.odein.translational_velocity_in_I - self.odein.translational_velocity_in_I_user
 
+    # Compute rotation matrices
+    (R_from_loc_to_glob,
+     R_from_glob_to_loc
+    ) = Control.computeRotationMatrices(self.odein.roll, self.odein.pitch, self.odein.yaw)
+    
+    translational_velocity_in_J = R_from_glob_to_loc * self.odein.translational_velocity_in_I
+    translational_velocity_in_J_norm = np.linalg.norm(R_from_glob_to_loc * self.odein.translational_velocity_in_I)
+
+    # rho: air density, A: reference area
+    drag_coefficients = self.gains.drag_comp
+    rho = self.gains.air_density_estimated
+    A = self.gains.surface_area_estimated
+    drag_force_in_body = -0.5 * rho * A * drag_coefficients * translational_velocity_in_J * translational_velocity_in_J_norm
+    drag_force_in_inertial = R_from_loc_to_glob * drag_force_in_body
+    drag_comp = -drag_force_in_inertial 
+
+    # introduce drag compensation
     self.mu_tran_raw = (
       self.gains.mass_total_estimated * (
         - self.gains.KP_tran * self.translational_position_error
@@ -114,6 +131,7 @@ class PID(Control):
         - self.gains.KI_tran * self.integral_position_tracking
         + self.odein.translational_acceleration_in_I_user
       )
+      - drag_comp
     ).reshape(3, 1)
 
   def computeInnerLoop(self):
