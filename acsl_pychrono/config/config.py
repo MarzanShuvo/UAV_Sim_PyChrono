@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class MissionConfig:
   # Total simulation duration in seconds
-  simulation_duration_seconds: float = 21.5 # 21.5
+  simulation_duration_seconds: float = 31.5
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
@@ -23,7 +23,7 @@ class MissionConfig:
   # Controller types:
   # "PID",
   # "MRAC",
-  controller_type: str = "MRAC"
+  controller_type: str = "PID"
 
   # User-defined trajectory types:
   # "circular_trajectory",
@@ -37,8 +37,12 @@ class MissionConfig:
   # Path relative to 'current_working_directory/params/user_defined_trajectory'
   trajectory_data_path: str = "bean_trajectory0p6.json"
 
+  # Time for which, after executing the "trajectory_data_path",
+  # the vehicle is hovering before starting the landing phase
+  hover_after_trajectory_time_seconds: float = 5.0
+
   # Flag to add or remove the payload from the simulation
-  add_payload_flag: bool = True
+  add_payload_flag: bool = False
   # Payload types: 
   # "two_steel_balls"
   # "ten_steel_balls_in_two_lines"

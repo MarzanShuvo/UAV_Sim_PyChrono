@@ -43,7 +43,7 @@ def simulateMission(sim: Simulation, git_info: dict | None = None):
     print(f"\n[ERROR] Simulation crashed: {e}")
     traceback.print_exc()
   finally:
-    print("[INFO] Saving logs before exit...")
+    print("\n[INFO] Saving logs before exit...")
     log_dict = logger.toDictionary()
     Logging.saveMatlabWorkspaceLog(
       log_dict,

@@ -32,7 +32,7 @@ class PIDGains:
     # ----------------------------------------------------------------
     #                   Safety Mechanism Parameters
     # ----------------------------------------------------------------
-    self.use_safety_mechanism = False
+    self.use_safety_mechanism = True
     
     # Mu - sphere intersection
     self.sphereEpsilon = 1e-2
@@ -40,9 +40,9 @@ class PIDGains:
     
     # Mu - elliptic cone intersection
     self.EllipticConeEpsilon = 1e-2
-    self.maximumRollAngle = math.radians(32) # [rad] 25
-    self.maximumPitchAngle = math.radians(32) # [rad] 25
+    self.maximumRollAngle = math.radians(60) # [rad] 25
+    self.maximumPitchAngle = math.radians(60) # [rad] 25
     
     # Mu - plane intersection
     self.planeEpsilon = 1e-2
-    self.alphaPlane = 0.95 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.
+    self.alphaPlane = 0.6 # [-] coefficient for setting the 'height' of the bottom plane. Must be >0 and <1.

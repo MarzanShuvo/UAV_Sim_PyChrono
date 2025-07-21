@@ -15,6 +15,7 @@ from acsl_pychrono.simulation.ode_input import OdeInput
 import acsl_pychrono.config.config as Cfg
 import acsl_pychrono.user_defined_trajectory as Traj
 from acsl_pychrono.simulation.utils import Utils
+from acsl_pychrono.control.control import Control
 
 class Simulation:
   def __init__(self, sim_cfg: Cfg.SimulationConfig = Cfg.SimulationConfig()) -> None:
@@ -77,41 +78,30 @@ class Simulation:
 
     self.exported_items = chrono.ImportSolidWorksSystem(modulename)
 
-    # Print exported items
-    for my_item in self.exported_items:
-      print(my_item.GetName())
-    # Add items to the physical system
+    # # Print exported items
+    # for my_item in self.exported_items:
+    #   print(my_item.GetName())
+    # # Add items to the physical system
     for my_item in self.exported_items:
       self.m_sys.Add(my_item)
 
   def loadBodies(self):
     m_ground = self.m_sys.SearchBody('ground')
-    if m_ground:
-      print('Ground found!')
-    else:
-      sys.exit('Error: cannot find ground from its name in the C::E system!')
-
+    if not m_ground:
+      sys.exit('Error: cannot find ground from its name in the C::E system!')    
     self.m_frame = self.m_sys.SearchBody('drone_big_box-1')
-    if self.m_frame:
-      print('Frame found!')
-    else:
+    if not self.m_frame:
       sys.exit('Error: cannot find drone frame from its name in the C::E system!')
-
     self.m_box = self.m_sys.SearchBody('box_big_200x200x100-1')
-    if self.m_box:
-      print('Box found!')
-    else:
+    if not self.m_box:
       sys.exit('Error: cannot find box from its name in the C::E system!')
-
     self.m_props = []
     for i in range(1, 9):
       name = f'3_blade_prop-{i}'
       prop = self.m_sys.SearchBody(name)
-      if prop:
-        print(f'{name} found!')
-        self.m_props.append(prop)
-      else:
+      if not prop:
         sys.exit(f'Error: cannot find {name} from its name in the C::E system!')
+      self.m_props.append(prop)
 
   def loadMarkers(self):
     """
@@ -121,11 +111,9 @@ class Simulation:
     for i in range(1, 9):
       name = f'Coordinate System{i}'
       marker = self.m_sys.SearchMarker(name)
-      if marker:
-        print(f'Marker_{i} found!')
-        self.m_markers.append(marker)
-      else:
+      if not marker:
         sys.exit(f'Error: cannot find marker{i} from its name in the C::E system!')
+      self.m_markers.append(marker)
 
   def addMotors(self):
     if not (self.m_frame and self.m_props and self.m_markers):
@@ -156,7 +144,7 @@ class Simulation:
 
   def loadEnvironmentModel(self):
     if not self.environment_config.include:
-      print("Environment model loading skipped (config.environment.include=False).")
+      print("[INFO] Environment model loading skipped (config.environment.include=False).")
       return
     
     # Prepend working directory and "/assets/environments"
@@ -594,7 +582,7 @@ class Simulation:
       return
     
     if (self.mission_config.add_payload_flag and self.mission_config.payload_type == "two_steel_balls"):
-      drop_time = 4.0 # Time at which payloads should be dropped.
+      drop_time = 3.7 # Time at which payloads should be dropped.
       disable_duration = 0.15 # Time duration for which collisions are disabled after the drop.
 
       if (time_now > drop_time):
@@ -615,8 +603,8 @@ class Simulation:
     if not apply:
       return
 
-    failure_time = 1.0
-    motor_efficiencies = [1, 1, 0, 1, 1, 1, 0.3, 1]
+    failure_time = 6.5 # 4.5
+    motor_efficiencies = [0, 1, 1, 1, 1, 1, 1, 1]
     if (time_now > failure_time):
       flight_params.motor_efficiency_matrix = np.matrix(np.diag(motor_efficiencies))
 
@@ -659,7 +647,7 @@ class Simulation:
     ode_input: OdeInput,
     user_defined_trajectory: Traj.BaseUserDefinedTrajectory,
     gains,
-    controller,
+    controller: Control,
     logger
     ):
 
@@ -692,9 +680,9 @@ class Simulation:
 
     self.updateSystemStates(time_now)
     self.applyExternalForces()
-    self.runControllerIfStarted(time_now, simulation_time)
     self.handlePayloadMechanisms(time_now)
     self.handleFaults(time_now)
+    self.runControllerIfStarted(time_now, simulation_time)
 
     self.debugPrints(time_now, simulation_time)
 
@@ -725,8 +713,6 @@ class Simulation:
 
     # Execute the control algorithm
     self.controller.run(self.ode_input)
-    # Collect the log data
-    self.logger.collectData(self.controller, simulation_time)
 
     # Thrust saturation
     self.applyMotorThrustLimitsAndEfficiency(self.controller, self.flight_params)
@@ -737,11 +723,14 @@ class Simulation:
     # Setting the propeller rotational velocities
     self.setPropellerRotationalVelocity(self.flight_params)
 
+    # Collect the log data
+    self.logger.collectData(self.controller, simulation_time)
+
   def handlePayloadMechanisms(self, time_now: float):
     # Payload Dropping
     self.handlePayloadDroppingBalls12(time_now, apply=False)
     # Dropping multiple balls one after the other
-    self.sequentiallyDropBalls(time_now, apply=True)
+    self.sequentiallyDropBalls(time_now, apply=False)
 
   def handleFaults(self, time_now: float):
     # Motor failure

@@ -84,7 +84,7 @@ class FlightParams:
     self.minimum_motor_thrust = 1.255/2 # [N] Minimum thrust that can be produced by a SINGLE motor = 0.6275 N
     
     # Motor efficiency coefficients for simulating motor failure
-    self.motor_efficiency_matrix = np.matrix(np.diag([1, 1, 1, 1, 1, 1, 1, 1]))
+    self.motor_efficiency_matrix = np.matrix(np.diag(np.ones((8))))
         
     self.K_omega = 0.0000014166615 # Coefficent relating the propellers'thrust to the square of the angular velocity. controller.motor_thrusts = K * omega^2
     self.K_torque = 5e-08 # [5e-08 - 5e-10] TO BE ESTIMATED!!! Coefficent relating the propellers'torque to the square of the angular velocity. Torque = K_torque * omega^2
