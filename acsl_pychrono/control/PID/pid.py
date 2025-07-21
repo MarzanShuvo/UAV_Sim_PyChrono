@@ -139,3 +139,6 @@ class PID(Control):
     self.u2 = self.Moment[0].item()
     self.u3 = self.Moment[1].item()
     self.u4 = self.Moment[2].item()
+
+  def computePostIntegrationAlgorithm(self):
+    pass

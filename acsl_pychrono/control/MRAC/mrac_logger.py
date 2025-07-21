@@ -40,7 +40,7 @@ class MRACLogger:
     DATA_vector[46] = controller.u3
     DATA_vector[47] = controller.u4
     DATA_vector[48:56] = controller.motor_thrusts.reshape(8,1)
-    DATA_vector[56:59] = controller.mu_baseline_tran
+    DATA_vector[56:59] = np.zeros((3, 1))
     DATA_vector[59:62] = controller.mu_adaptive_tran
     DATA_vector[62:65] = controller.mu_PD_baseline_tran
     DATA_vector[65:68] = controller.Moment_baseline
@@ -52,6 +52,27 @@ class MRACLogger:
     DATA_vector[83:86] = controller.omega_ref_dot
     DATA_vector[86:89] = controller.r_tran
     DATA_vector[89:92] = controller.r_rot
+
+    if self.gains.use_projection_operator:
+      DATA_vector[92] = controller.proj_op_activated_K_hat_x_tran
+      DATA_vector[93] = controller.proj_op_activated_K_hat_r_tran
+      DATA_vector[94] = controller.proj_op_activated_Theta_hat_tran
+      DATA_vector[95] = controller.proj_op_activated_K_hat_x_rot
+      DATA_vector[96] = controller.proj_op_activated_K_hat_r_rot
+      DATA_vector[97] = controller.proj_op_activated_Theta_hat_rot
+    else:
+      DATA_vector[92:98] = False
+
+    DATA_vector[98:116] = controller.K_hat_x_tran.flatten(order='F').reshape(-1, 1)
+    DATA_vector[116:125] = controller.K_hat_r_tran.flatten(order='F').reshape(-1, 1)
+    DATA_vector[125:143] = controller.Theta_hat_tran.flatten(order='F').reshape(-1, 1)
+
+    DATA_vector[143:152] = controller.K_hat_x_rot.flatten(order='F').reshape(-1, 1)
+    DATA_vector[152:161] = controller.K_hat_r_rot.flatten(order='F').reshape(-1, 1)
+    DATA_vector[161:179] = controller.Theta_hat_rot.flatten(order='F').reshape(-1, 1)
+
+    DATA_vector[179] = controller.dead_zone_value_tran
+    DATA_vector[180] = controller.dead_zone_value_rot
     
     self.data_list.append(DATA_vector.flatten())
 
@@ -107,7 +128,62 @@ class MRACLogger:
           "x": DATA_np[:, 86].reshape(-1, 1),
           "y": DATA_np[:, 87].reshape(-1, 1),
           "z": DATA_np[:, 88].reshape(-1, 1),
-        }
+        },
+        "proj_op_activated_K_hat_x": DATA_np[:, 92].reshape(-1, 1),
+        "proj_op_activated_K_hat_r": DATA_np[:, 93].reshape(-1, 1),
+        "proj_op_activated_Theta_hat": DATA_np[:, 94].reshape(-1, 1),
+        "K_hat_x": {
+          "ind00": DATA_np[:, 98].reshape(-1, 1),
+          "ind10": DATA_np[:, 99].reshape(-1, 1),
+          "ind20": DATA_np[:, 100].reshape(-1, 1),
+          "ind30": DATA_np[:, 101].reshape(-1, 1),
+          "ind40": DATA_np[:, 102].reshape(-1, 1),
+          "ind50": DATA_np[:, 103].reshape(-1, 1),
+          "ind01": DATA_np[:, 104].reshape(-1, 1),
+          "ind11": DATA_np[:, 105].reshape(-1, 1),
+          "ind21": DATA_np[:, 106].reshape(-1, 1),
+          "ind31": DATA_np[:, 107].reshape(-1, 1),
+          "ind41": DATA_np[:, 108].reshape(-1, 1),
+          "ind51": DATA_np[:, 109].reshape(-1, 1),
+          "ind02": DATA_np[:, 110].reshape(-1, 1),
+          "ind12": DATA_np[:, 111].reshape(-1, 1),
+          "ind22": DATA_np[:, 112].reshape(-1, 1),
+          "ind32": DATA_np[:, 113].reshape(-1, 1),
+          "ind42": DATA_np[:, 114].reshape(-1, 1),
+          "ind52": DATA_np[:, 115].reshape(-1, 1),
+        },
+        "K_hat_r": {
+          "ind00": DATA_np[:, 116].reshape(-1, 1),
+          "ind10": DATA_np[:, 117].reshape(-1, 1),
+          "ind20": DATA_np[:, 118].reshape(-1, 1),
+          "ind01": DATA_np[:, 119].reshape(-1, 1),
+          "ind11": DATA_np[:, 120].reshape(-1, 1),
+          "ind21": DATA_np[:, 121].reshape(-1, 1),
+          "ind02": DATA_np[:, 122].reshape(-1, 1),
+          "ind12": DATA_np[:, 123].reshape(-1, 1),
+          "ind22": DATA_np[:, 124].reshape(-1, 1),
+        },
+        "Theta_hat": {
+          "ind00": DATA_np[:, 125].reshape(-1, 1),
+          "ind10": DATA_np[:, 126].reshape(-1, 1),
+          "ind20": DATA_np[:, 127].reshape(-1, 1),
+          "ind30": DATA_np[:, 128].reshape(-1, 1),
+          "ind40": DATA_np[:, 129].reshape(-1, 1),
+          "ind50": DATA_np[:, 130].reshape(-1, 1),
+          "ind01": DATA_np[:, 131].reshape(-1, 1),
+          "ind11": DATA_np[:, 132].reshape(-1, 1),
+          "ind21": DATA_np[:, 133].reshape(-1, 1),
+          "ind31": DATA_np[:, 134].reshape(-1, 1),
+          "ind41": DATA_np[:, 135].reshape(-1, 1),
+          "ind51": DATA_np[:, 136].reshape(-1, 1),
+          "ind02": DATA_np[:, 137].reshape(-1, 1),
+          "ind12": DATA_np[:, 138].reshape(-1, 1),
+          "ind22": DATA_np[:, 139].reshape(-1, 1),
+          "ind32": DATA_np[:, 140].reshape(-1, 1),
+          "ind42": DATA_np[:, 141].reshape(-1, 1),
+          "ind52": DATA_np[:, 142].reshape(-1, 1),
+        },
+        "dead_zone_value": DATA_np[:, 179].reshape(-1, 1),
       },
       "desired_euler_angles": {
         "roll": DATA_np[:, 20].reshape(-1, 1),
@@ -157,7 +233,53 @@ class MRACLogger:
           "x": DATA_np[:, 89].reshape(-1, 1),
           "y": DATA_np[:, 90].reshape(-1, 1),
           "z": DATA_np[:, 91].reshape(-1, 1),
-        }
+        },
+        "proj_op_activated_K_hat_x": DATA_np[:, 95].reshape(-1, 1),
+        "proj_op_activated_K_hat_r": DATA_np[:, 96].reshape(-1, 1),
+        "proj_op_activated_Theta_hat": DATA_np[:, 97].reshape(-1, 1),
+        "K_hat_x": {
+          "ind00": DATA_np[:, 143].reshape(-1, 1),
+          "ind10": DATA_np[:, 144].reshape(-1, 1),
+          "ind20": DATA_np[:, 145].reshape(-1, 1),
+          "ind01": DATA_np[:, 146].reshape(-1, 1),
+          "ind11": DATA_np[:, 147].reshape(-1, 1),
+          "ind21": DATA_np[:, 148].reshape(-1, 1),
+          "ind02": DATA_np[:, 149].reshape(-1, 1),
+          "ind12": DATA_np[:, 150].reshape(-1, 1),
+          "ind22": DATA_np[:, 151].reshape(-1, 1),
+        },
+        "K_hat_r": {
+          "ind00": DATA_np[:, 152].reshape(-1, 1),
+          "ind10": DATA_np[:, 153].reshape(-1, 1),
+          "ind20": DATA_np[:, 154].reshape(-1, 1),
+          "ind01": DATA_np[:, 155].reshape(-1, 1),
+          "ind11": DATA_np[:, 156].reshape(-1, 1),
+          "ind21": DATA_np[:, 157].reshape(-1, 1),
+          "ind02": DATA_np[:, 158].reshape(-1, 1),
+          "ind12": DATA_np[:, 159].reshape(-1, 1),
+          "ind22": DATA_np[:, 160].reshape(-1, 1),
+        },
+        "Theta_hat": {
+          "ind00": DATA_np[:, 161].reshape(-1, 1),
+          "ind10": DATA_np[:, 162].reshape(-1, 1),
+          "ind20": DATA_np[:, 163].reshape(-1, 1),
+          "ind30": DATA_np[:, 164].reshape(-1, 1),
+          "ind40": DATA_np[:, 165].reshape(-1, 1),
+          "ind50": DATA_np[:, 166].reshape(-1, 1),
+          "ind01": DATA_np[:, 167].reshape(-1, 1),
+          "ind11": DATA_np[:, 168].reshape(-1, 1),
+          "ind21": DATA_np[:, 169].reshape(-1, 1),
+          "ind31": DATA_np[:, 170].reshape(-1, 1),
+          "ind41": DATA_np[:, 171].reshape(-1, 1),
+          "ind51": DATA_np[:, 172].reshape(-1, 1),
+          "ind02": DATA_np[:, 173].reshape(-1, 1),
+          "ind12": DATA_np[:, 174].reshape(-1, 1),
+          "ind22": DATA_np[:, 175].reshape(-1, 1),
+          "ind32": DATA_np[:, 176].reshape(-1, 1),
+          "ind42": DATA_np[:, 177].reshape(-1, 1),
+          "ind52": DATA_np[:, 178].reshape(-1, 1),
+        },
+        "dead_zone_value": DATA_np[:, 180].reshape(-1, 1),
       },
       "user_defined_position": {
         "x": DATA_np[:, 32].reshape(-1, 1),

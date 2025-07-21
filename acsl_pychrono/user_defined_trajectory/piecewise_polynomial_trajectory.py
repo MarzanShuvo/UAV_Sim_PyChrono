@@ -2,12 +2,14 @@ import math
 import numpy as np
 import json
 import os
+from typing import Tuple
 from numpy.polynomial import polynomial
 import pychrono as chrono
 from acsl_pychrono.config.config import MissionConfig
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.user_defined_trajectory.trajectory_auxillary import TrajectoryAuxillary
 from acsl_pychrono.user_defined_trajectory.base_user_defined_trajectory import BaseUserDefinedTrajectory
+from acsl_pychrono.user_defined_trajectory.landing import LandingPolynomials
 
 class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
   def __init__(
@@ -20,10 +22,12 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
     
     self.controller_start_time = flight_params.controller_start_time
     self.trajectory_data_path = mission_config.trajectory_data_path
+    self.hover_after_trajectory_time_seconds = mission_config.hover_after_trajectory_time_seconds
 
-    self.translational_position_in_I_user = np.zeros((3,1))
-    self.translational_velocity_in_I_user = np.zeros((3,1))
-    self.translational_acceleration_in_I_user = np.zeros((3,1))
+    self.translational_position_in_I_user = np.zeros((3, 1))
+    self.translational_velocity_in_I_user = np.zeros((3, 1))
+    self.translational_acceleration_in_I_user = np.zeros((3, 1))
+    self.translational_position_in_I_user_previous = np.zeros((3, 1))
     self.t_adjusted = 0
     self.segment = 0
     self.velocity_norm2D = 0
@@ -31,6 +35,8 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
     self.psi_ref_dot = 0
     self.psi_ref_ddot = 0
     self.psi_ref_previous = 0
+
+    self.landing_polynomials = LandingPolynomials()
 
     self.setParameters()
     self.addVisualization(mfloor, mfloor_Yposition)
@@ -68,76 +74,104 @@ class PiecewisePolynomialTrajectory(BaseUserDefinedTrajectory):
     self.jerk_coef_y = TrajectoryAuxillary.PolyderMatrix(self.acceleration_coef_y)
     self.jerk_coef_z = TrajectoryAuxillary.PolyderMatrix(self.acceleration_coef_z)
 
-  def computeUserDefinedTrajectory(self, t):
+    self.landing_start_time_seconds = (
+      self.controller_start_time + self.waypointTimes[-1] + self.hover_after_trajectory_time_seconds
+    )
+    self.landing_end_times_seconds = (
+      self.landing_start_time_seconds + self.landing_polynomials.get("1meterIn4seconds", "meta", "duration_seconds")
+    )
+
+  def computeUserDefinedTrajectory(self, t: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Piecewise polynomial trajectory.
     t: Current simulation time
     """
     # Account for the delay introduced by controller_start_time
-    t = t - self.controller_start_time
+    t -= self.controller_start_time
 
-    (self.t_adjusted,
-     self.segment
-    ) = TrajectoryAuxillary.PolyTimeAdjusted(self.waypointTimes, t)
+    self.time_current_minus_takeoff = t - self.controller_start_time
 
-    self.translational_position_in_I_user[0] = polynomial.polyval(
-      self.t_adjusted,
-      self.position_coef_x[self.segment,:]
-    )
-    self.translational_position_in_I_user[1] = polynomial.polyval(
-      self.t_adjusted,
-      self.position_coef_y[self.segment,:]
-    )
-    self.translational_position_in_I_user[2] = polynomial.polyval(
-      self.t_adjusted,
-      self.position_coef_z[self.segment,:]
+    (self.t_adjusted, self.segment) = TrajectoryAuxillary.PolyTimeAdjusted(self.waypointTimes, self.time_current_minus_takeoff)
+
+    landing_start = self.landing_start_time_seconds
+    landing_end = self.landing_end_times_seconds
+    last_waypoint_time = self.waypointTimes[-1]
+
+    # If the current time has passed the last waypoint time but it is not greater than "landing_start_time_seconds",
+    # set the trajectory to perform HOVER in the last position
+    if self.time_current_minus_takeoff >= last_waypoint_time and self.time_current_minus_takeoff < landing_start:
+      self.translational_position_in_I_user = self.translational_position_in_I_user_previous.copy()
+      self.translational_velocity_in_I_user = np.zeros((3, 1))
+      self.translational_acceleration_in_I_user = np.zeros((3, 1))
+
+    # If the current time has passed the "landing_start_time_seconds" but not the "landing_end_times_seconds",
+    # perform the LANDING meneuvre
+    elif landing_start <= self.time_current_minus_takeoff < landing_end:
+      t_landing = self.time_current_minus_takeoff - landing_start
+      self.translational_position_in_I_user = np.array([
+        [self.translational_position_in_I_user_previous[0].item()],
+        [self.translational_position_in_I_user_previous[1].item()],
+        [polynomial.polyval(t_landing, self.landing_polynomials.get("1meterIn4seconds", "position", "z"))]
+      ])
+      self.translational_velocity_in_I_user = np.array([
+        [0.0],
+        [0.0],
+        [polynomial.polyval(t_landing, self.landing_polynomials.get("1meterIn4seconds", "velocity", "z"))]
+      ])
+      self.translational_acceleration_in_I_user = np.array([
+        [0.0],
+        [0.0],
+        [polynomial.polyval(t_landing, self.landing_polynomials.get("1meterIn4seconds", "acceleration", "z"))]
+      ])
+
+    # If the current time has passed the "landing_end_times_seconds",
+    # stay at the last good location
+    elif self.time_current_minus_takeoff >= landing_end:
+      self.translational_position_in_I_user = self.translational_position_in_I_user_previous.copy()
+      self.translational_velocity_in_I_user = np.zeros((3, 1))
+      self.translational_acceleration_in_I_user = np.zeros((3, 1))
+
+    # Follow the piecewise polynomial trajectory
+    else:
+      coefs = [
+        [self.position_coef_x, self.position_coef_y, self.position_coef_z],
+        [self.velocity_coef_x, self.velocity_coef_y, self.velocity_coef_z],
+        [self.acceleration_coef_x, self.acceleration_coef_y, self.acceleration_coef_z],
+      ]
+
+      outputs = [
+        self.translational_position_in_I_user,
+        self.translational_velocity_in_I_user,
+        self.translational_acceleration_in_I_user,
+      ]
+
+      for k in range(3):
+        for i in range(3):
+          outputs[k][i] = polynomial.polyval(self.t_adjusted, coefs[k][i][self.segment, :])
+
+    # Final return for all code paths
+    self.translational_position_in_I_user_previous = self.translational_position_in_I_user.copy()
+    return (
+      self.translational_position_in_I_user,
+      self.translational_velocity_in_I_user,
+      self.translational_acceleration_in_I_user
     )
 
-    self.translational_velocity_in_I_user[0] = polynomial.polyval(
-      self.t_adjusted,
-      self.velocity_coef_x[self.segment,:]
-    )
-    self.translational_velocity_in_I_user[1] = polynomial.polyval(
-      self.t_adjusted,
-      self.velocity_coef_y[self.segment,:]
-    )
-    self.translational_velocity_in_I_user[2] = polynomial.polyval(
-      self.t_adjusted,
-      self.velocity_coef_z[self.segment,:]
-    )
-
-    self.translational_acceleration_in_I_user[0] = polynomial.polyval(
-      self.t_adjusted,
-      self.acceleration_coef_x[self.segment,:]
-    )
-    self.translational_acceleration_in_I_user[1] = polynomial.polyval(
-      self.t_adjusted,
-      self.acceleration_coef_y[self.segment,:]
-    )
-    self.translational_acceleration_in_I_user[2] = polynomial.polyval(
-      self.t_adjusted,
-      self.acceleration_coef_z[self.segment,:]
-    )
-    
-    return (self.translational_position_in_I_user,
-            self.translational_velocity_in_I_user,
-            self.translational_acceleration_in_I_user)  
-  
   def computeUserDefinedYaw(self):
     "User-defined reference yaw angle"
+
+    last_waypoint_time = self.waypointTimes[-1]
 
     self.velocity_norm2D = TrajectoryAuxillary.Norm2D(
       self.velocity_coef_x[self.segment,:],
       self.velocity_coef_y[self.segment,:],
       self.t_adjusted
     )
-    
-    if self.t_adjusted == 0:
-      self.psi_ref = 0
-      self.psi_ref_dot = 0
-      self.psi_ref_ddot = 0
-      
-    elif (self.t_adjusted > 0 and self.velocity_norm2D < 1e-5):
+          
+    if (
+      (self.t_adjusted >= 0 and self.velocity_norm2D < 1e-5) or
+      (self.time_current_minus_takeoff >= last_waypoint_time)
+    ):
       self.psi_ref = self.psi_ref_previous
       self.psi_ref_dot = 0
       self.psi_ref_ddot = 0

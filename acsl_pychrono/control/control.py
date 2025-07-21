@@ -7,7 +7,7 @@ from acsl_pychrono.simulation.functions import rk4singlestep
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 
-class Control:
+class Control(ABC):
   def __init__(self, odein: OdeInput) -> None:
     self.odein = odein
     self.y = None # Will be initialized in subclasses
@@ -27,6 +27,13 @@ class Control:
     """
     pass
 
+  @abstractmethod
+  def computePostIntegrationAlgorithm(self) -> None:
+    """
+    Each subclass must implement this method.
+    """
+    pass
+
   def integrateODEOneStepRK4(self):
     """
     Perform a single RK4 integration step using the current state.
@@ -42,6 +49,7 @@ class Control:
     """
     self.computeControlAlgorithm(ode_input)
     self.integrateODEOneStepRK4()
+    self.computePostIntegrationAlgorithm()
 
   @staticmethod
   def computeU1RollPitchRef(mu_x, mu_y, mu_z, mass_total_estimated, G_acc, yaw_ref):

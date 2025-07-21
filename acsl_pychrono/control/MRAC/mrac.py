@@ -7,10 +7,11 @@ from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
 from acsl_pychrono.control.base_mrac import BaseMRAC
 from acsl_pychrono.control.MRAC.m_mrac import M_MRAC
+from acsl_pychrono.control.projection_operator import ProjectionOperator
 
 class MRAC(BaseMRAC, Control):
   def __init__(self, gains: MRACGains, ode_input: OdeInput, flight_params: FlightParams, timestep: float):
-    super().__init__(odein=ode_input)
+    super().__init__(odein=ode_input, gains=gains)
     self.gains = gains
     self.fp = flight_params
     self.timestep = timestep
@@ -43,7 +44,7 @@ class MRAC(BaseMRAC, Control):
     self.integral_e_omega_ref_cmd = self.y[103:106] #Integral of (omega_ref - omega_cmd)
 
     # Reshapes all adaptive gains to their correct (row, col) shape as matrices
-    self.reshapeAdaptiveGainsToMatrices()
+    self.reshapeAdaptiveGainsToMatricesMRAC()
 
     # compute translational and rotational trajectory tracking error
     self.computeTrajectoryTrackingErrors(self.odein)
@@ -54,29 +55,18 @@ class MRAC(BaseMRAC, Control):
 
     self.mu_PD_baseline_tran = self.computeMuPDbaselineOuterLoop()
 
-    (self.Phi_adaptive_tran_augmented,
-     self.Theta_tran_adaptive_bar_augmented
-    ) = self.computeRegressorVectorAndThetaBarOuterLoop()
+    self.Phi_adaptive_tran_augmented = self.computeRegressorVectorOuterLoop()
 
-    self.mu_baseline_tran = self.computeMuBaselineBarOuterLoop()
-
-    self.mu_adaptive_tran = self.computeMuAdaptiveOuterLoop()
+    self.mu_adaptive_tran = M_MRAC.computeControlLaw(
+      self.K_hat_x_tran, self.x_tran,
+      self.K_hat_r_tran, self.r_tran,
+      self.Theta_hat_tran, self.Phi_adaptive_tran_augmented
+    )
 
     self.mu_tran_raw = self.computeMuRawOuterLoop()
 
-    # Precompute e^T*P*B for outer loop
-    eTranspose_P_B_tran = M_MRAC.compute_eTransposePB(self.e_tran, self.gains.P_tran, self.gains.B_tran)
-    
-    # Outer Loop Adaptive Laws
-    (self.K_hat_x_tran_dot,
-     self.K_hat_r_tran_dot,
-     self.Theta_hat_tran_dot
-    ) = M_MRAC.computeAllAdaptiveLaws(
-      self.gains.Gamma_x_tran, self.x_tran,
-      self.gains.Gamma_r_tran, self.r_tran,
-      self.gains.Gamma_Theta_tran, self.Phi_adaptive_tran_augmented,
-      eTranspose_P_B_tran
-    )
+    # Update Adaptive Laws Outer Loop
+    self.updateAdaptiveLawsOuterLoop()
 
     # Outer Loop Safety Mechanism
     self.mu_x, self.mu_y, self.mu_z = self.safety_mechanism.apply(self.mu_tran_raw)
@@ -136,23 +126,16 @@ class MRAC(BaseMRAC, Control):
      self.Phi_adaptive_rot_augmented
     ) = self.computeRegressorVectorInnerLoop()
 
-    # Precompute e^T*P*B for inner loop
-    eTranspose_P_B_rot = M_MRAC.compute_eTransposePB(self.e_rot, self.gains.P_rot, self.gains.B_rot)
-
-    # Inner Loop Adaptive Laws
-    (self.K_hat_x_rot_dot,
-     self.K_hat_r_rot_dot,
-     self.Theta_hat_rot_dot
-    ) = M_MRAC.computeAllAdaptiveLaws(
-      self.gains.Gamma_x_rot, self.odein.angular_velocity,
-      self.gains.Gamma_r_rot, self.r_rot,
-      self.gains.Gamma_Theta_rot, self.Phi_adaptive_rot_augmented,
-      eTranspose_P_B_rot
-    )
+    # Update Adaptive Laws Inner Loop
+    self.updateAdaptiveLawsInnerLoop()
 
     self.Moment_baseline = self.computeMomentBaselineInnerLoop()
 
-    self.Moment_adaptive = self.computeMomentAdaptiveInnerLoop()
+    self.Moment_adaptive = M_MRAC.computeControlLaw(
+      self.K_hat_x_rot, self.odein.angular_velocity,
+      self.K_hat_r_rot, self.r_rot,
+      self.Theta_hat_rot, self.Phi_adaptive_rot_augmented
+    )
 
     (self.u2,
      self.u3,
@@ -184,3 +167,134 @@ class MRAC(BaseMRAC, Control):
     self.dy[103:106] = self.omega_ref - self.omega_cmd
 
     return np.array(self.dy)
+  
+  def updateAdaptiveLawsOuterLoop(self):
+    """
+    Update the outer loop adaptive laws with deadzone modification, e-modification, and
+    projection operator (all if enabled).
+    """
+    # Precompute e^T*P*B and its norm for outer loop
+    (eTranspose_P_B_tran,
+     eTranspose_P_B_norm_tran
+    ) = M_MRAC.compute_eTransposePB(self.e_tran, self.gains.P_tran, self.gains.B_tran)
+
+    # Deadzone modification Outer Loop
+    self.dead_zone_value_tran = M_MRAC.deadZoneModulationFunction(
+      self.e_tran, self.gains.dead_zone_delta_tran, self.gains.dead_zone_e0_tran,
+      self.gains.use_dead_zone_modification
+    )
+
+    # Outer Loop Adaptive Laws
+    (self.K_hat_x_tran_dot,
+     self.K_hat_r_tran_dot,
+     self.Theta_hat_tran_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
+      self.gains.Gamma_x_tran, self.x_tran,
+      self.gains.Gamma_r_tran, self.r_tran,
+      self.gains.Gamma_Theta_tran, self.Phi_adaptive_tran_augmented,
+      eTranspose_P_B_tran,
+      self.dead_zone_value_tran,
+      self.gains.sigma_x_tran, self.gains.sigma_r_tran, self.gains.sigma_Theta_tran,
+      eTranspose_P_B_norm_tran,
+      self.K_hat_x_tran, self.K_hat_r_tran, self.Theta_hat_tran,
+      self.gains.use_dead_zone_modification, self.gains.use_e_modification
+    )
+
+    # Projection Operator Outer Loop
+    if self.gains.use_projection_operator:
+      (self.K_hat_x_tran_dot,
+       self.proj_op_activated_K_hat_x_tran
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.K_hat_x_tran,
+        self.K_hat_x_tran_dot,
+        self.gains.x_e_x_tran,
+        self.gains.S_x_tran,
+        self.gains.epsilon_x_tran
+      )
+
+      (self.K_hat_r_tran_dot,
+       self.proj_op_activated_K_hat_r_tran
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.K_hat_r_tran,
+        self.K_hat_r_tran_dot,
+        self.gains.x_e_r_tran,
+        self.gains.S_r_tran,
+        self.gains.epsilon_r_tran
+      )
+
+      (self.Theta_hat_tran_dot,
+       self.proj_op_activated_Theta_hat_tran
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.Theta_hat_tran,
+        self.Theta_hat_tran_dot,
+        self.gains.x_e_Theta_tran,
+        self.gains.S_Theta_tran,
+        self.gains.epsilon_Theta_tran
+      )
+
+  def updateAdaptiveLawsInnerLoop(self):
+    """
+    Update the inner loop adaptive laws with deadzone modification, e-modification, and
+    projection operator (all if enabled).
+    """
+    # Precompute e^T*P*B and its norm for inner loop
+    (eTranspose_P_B_rot,
+     eTranspose_P_B_norm_rot
+    ) = M_MRAC.compute_eTransposePB(self.e_rot, self.gains.P_rot, self.gains.B_rot)
+
+    # Deadzone modification Inner Loop
+    self.dead_zone_value_rot = M_MRAC.deadZoneModulationFunction(
+      self.e_rot, self.gains.dead_zone_delta_rot, self.gains.dead_zone_e0_rot,
+      self.gains.use_dead_zone_modification
+    )
+
+    # Inner Loop Adaptive Laws
+    (self.K_hat_x_rot_dot,
+     self.K_hat_r_rot_dot,
+     self.Theta_hat_rot_dot
+    ) = M_MRAC.computeAllRobustAdaptiveLaws(
+      self.gains.Gamma_x_rot, self.odein.angular_velocity,
+      self.gains.Gamma_r_rot, self.r_rot,
+      self.gains.Gamma_Theta_rot, self.Phi_adaptive_rot_augmented,
+      eTranspose_P_B_rot,
+      self.dead_zone_value_rot,
+      self.gains.sigma_x_rot, self.gains.sigma_r_rot, self.gains.sigma_Theta_rot,
+      eTranspose_P_B_norm_rot,
+      self.K_hat_x_rot, self.K_hat_r_rot, self.Theta_hat_rot,
+      self.gains.use_dead_zone_modification, self.gains.use_e_modification
+    )
+
+    # Projection Operator Inner Loop
+    if self.gains.use_projection_operator:
+      (self.K_hat_x_rot_dot,
+       self.proj_op_activated_K_hat_x_rot
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.K_hat_x_rot,
+        self.K_hat_x_rot_dot,
+        self.gains.x_e_x_rot,
+        self.gains.S_x_rot,
+        self.gains.epsilon_x_rot
+      )
+
+      (self.K_hat_r_rot_dot,
+       self.proj_op_activated_K_hat_r_rot
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.K_hat_r_rot,
+        self.K_hat_r_rot_dot,
+        self.gains.x_e_r_rot,
+        self.gains.S_r_rot,
+        self.gains.epsilon_r_rot
+      )
+
+      (self.Theta_hat_rot_dot,
+       self.proj_op_activated_Theta_hat_rot
+      ) = ProjectionOperator.Ellipsoid.projectionMatrix(
+        self.Theta_hat_rot,
+        self.Theta_hat_rot_dot,
+        self.gains.x_e_Theta_rot,
+        self.gains.S_Theta_rot,
+        self.gains.epsilon_Theta_rot
+      )
+
+  def computePostIntegrationAlgorithm(self):
+    pass

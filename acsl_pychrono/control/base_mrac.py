@@ -5,9 +5,37 @@ from numpy import linalg as LA
 from acsl_pychrono.simulation.ode_input import OdeInput
 from acsl_pychrono.simulation.flight_params import FlightParams
 from acsl_pychrono.control.control import Control
+from acsl_pychrono.control.base_mrac_gains import BaseMRACGains
 
 class BaseMRAC():  
-  def reshapeAdaptiveGainsToMatrices(self):
+  def __init__(self, odein: OdeInput, gains: BaseMRACGains) -> None:
+    self.odein: OdeInput = odein
+    self.gains: BaseMRACGains = gains
+    self.e_tran = np.zeros((6, 1))
+    self.e_rot = np.zeros((3, 1))
+    self.x_ref_tran = np.zeros((6, 1))
+    self.x_ref_tran_dot = np.zeros((6, 1))
+    self.integral_position_tracking_ref = np.zeros((3, 1))
+    self.mu_PD_baseline_tran = np.zeros((3, 1))
+    self.mu_adaptive_tran = np.zeros((3, 1))
+    self.omega_ref = np.zeros((3, 1))
+    self.omega_ref_dot = np.zeros((3, 1))
+    self.r_tran = np.zeros((3, 1))
+    self.angular_position_dot = np.zeros((3, 1))
+    self.angular_error = np.zeros((3, 1))
+    self.integral_angular_error = np.zeros((3, 1))
+    self.angular_position_ref_dot = np.zeros((3, 1))
+    self.angular_error_dot = np.zeros((3, 1))
+    self.angular_position_ref_ddot = np.zeros((3, 1))
+    self.omega_cmd = np.zeros((3, 1))
+    self.integral_e_omega_ref_cmd = np.zeros((3, 1))
+    self.omega_cmd_dot = np.zeros((3, 1))
+    self.integral_e_rot = np.zeros((3, 1))
+    self.Moment_baseline_PI = np.zeros((3, 1))
+    self.Moment_baseline = np.zeros((3, 1))
+    self.Moment_adaptive = np.zeros((3, 1))
+
+  def reshapeAdaptiveGainsToMatricesMRAC(self):
     """
     Reshapes all gain parameters to their correct (row, col) shape and converts them to np.matrix.
     This is intended to be called once after loading or updating gains stored as flat arrays.
@@ -18,6 +46,15 @@ class BaseMRAC():
     self.K_hat_x_rot = np.matrix(self.K_hat_x_rot.reshape(3,3))
     self.K_hat_r_rot = np.matrix(self.K_hat_r_rot.reshape(3,3))
     self.Theta_hat_rot = np.matrix(self.Theta_hat_rot.reshape(6,3))
+
+  def reshapeAdaptiveGainsToMatricesTwoLayerMRAC(self):
+    """
+    Reshapes all gain parameters to their correct (row, col) shape and converts them to np.matrix.
+    This is intended to be called once after loading or updating gains stored as flat arrays.
+    """
+    self.reshapeAdaptiveGainsToMatricesMRAC()
+    self.K_hat_g_tran = np.matrix(self.K_hat_g_tran.reshape(6,3))
+    self.K_hat_g_rot = np.matrix(self.K_hat_g_rot.reshape(3,3))
 
   def computeTrajectoryTrackingErrors(self, odein: OdeInput):
     """
@@ -62,7 +99,7 @@ class BaseMRAC():
 
     return mu_PD_baseline_tran
   
-  def computeRegressorVectorAndThetaBarOuterLoop(self):
+  def computeRegressorVectorOuterLoop(self):
     # Compute rotation matrices
     (R_from_loc_to_glob,
      R_from_glob_to_loc
@@ -74,33 +111,12 @@ class BaseMRAC():
 
     Phi_adaptive_tran_augmented = np.matrix(np.block([[self.mu_PD_baseline_tran],
                                                       [self.Phi_adaptive_tran]]))
-    Theta_tran_adaptive_bar_augmented = np.matrix(np.block([[np.identity(3)],
-                                                            [self.gains.Theta_tran_adaptive_bar]]))
     
-    return Phi_adaptive_tran_augmented, Theta_tran_adaptive_bar_augmented
-  
-  def computeMuBaselineBarOuterLoop(self):
-    mu_baseline_tran = (
-      self.gains.K_x_tran_bar.T * self.x_tran
-      + self.gains.K_r_tran_bar.T * self.r_tran
-      - self.Theta_tran_adaptive_bar_augmented.T * self.Phi_adaptive_tran_augmented
-    )
-
-    return mu_baseline_tran
-  
-  def computeMuAdaptiveOuterLoop(self):
-    mu_adaptive_tran = (
-      self.K_hat_x_tran.T * self.x_tran
-      + self.K_hat_r_tran.T * self.r_tran
-      - self.Theta_hat_tran.T * self.Phi_adaptive_tran_augmented
-    )
-
-    return mu_adaptive_tran
+    return Phi_adaptive_tran_augmented
   
   def computeMuRawOuterLoop(self):
     mu_tran_raw = (
       self.mu_PD_baseline_tran
-      + self.mu_baseline_tran
       + self.mu_adaptive_tran
     )
 
@@ -154,7 +170,7 @@ class BaseMRAC():
     return r_rot
   
   def computeMomentPIbaselineInnerLoop(self):
-    Moment_baseline_PI = -self.fp.I_matrix_estimated * (
+    Moment_baseline_PI = -self.gains.I_matrix_estimated * (
       self.gains.KP_rot_PI_baseline * self.e_rot
       + self.gains.KI_rot_PI_baseline * self.integral_e_rot 
       - self.omega_ref_dot
@@ -175,19 +191,10 @@ class BaseMRAC():
   def computeMomentBaselineInnerLoop(self):
     Moment_baseline = np.cross(
       self.odein.angular_velocity.ravel(),
-      (self.fp.I_matrix_estimated * self.odein.angular_velocity).ravel()
+      (self.gains.I_matrix_estimated * self.odein.angular_velocity).ravel()
     ).reshape(3,1)
 
     return Moment_baseline
-  
-  def computeMomentAdaptiveInnerLoop(self):
-    Moment_adaptive = (
-      self.K_hat_x_rot.T * self.odein.angular_velocity
-      + self.K_hat_r_rot.T * self.r_rot
-      - self.Theta_hat_rot.T * self.Phi_adaptive_rot_augmented
-    )
-
-    return Moment_adaptive
   
   def computeU2_U3_U4(self):
     Moment = self.Moment_baseline_PI + self.Moment_baseline + self.Moment_adaptive
