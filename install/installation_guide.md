@@ -3,9 +3,20 @@
 This guide walks you through the installation of [PyChrono](https://projectchrono.org/) for this project.
 
 
-## Install Anaconda or Miniconda distribution
+# Install Anaconda or Miniconda distribution
 
 check the [installation guide](https://www.anaconda.com/docs/getting-started/miniconda/install#macos-linux-installation)
+
+# Automated Setup Procedure for Windows Users
+
+1. Download the file `install_pychrono_windows.txt`.
+2. Rename the file to `install_pychrono_windows.bat`.
+3. Open Command Prompt and run:
+   ```bash
+   install_pychrono_windows.bat
+4. [Skip to Step 5](#step-5-copy-the-demos-and-test-the-installation)
+
+# Manual Setup Procedure (for all users)
 
 ## Step 1: Add the conda-forge channel
 Open a terminal window. For Windows users, please use Powershell.
@@ -69,13 +80,13 @@ mkdir pychrono_demos
 cd pychrono_demos/
 cp -r $PYTHONPATH/pychrono/demos/* .
 ```
-Now you can try to run the demos to check if the installation is correct.
+Now you can run the demos to check if the installation is correct.
 For example,
 ```bash
 cd mbs/
 python demo_MBS_revolute.py
 ```
-## Step 6: Try to run the code
+## Step 6: Run the code
 Clone the repo and navigate to the project folder.
 ```bash
 git clone https://github.com/andrealaffly/UAV_Sim_PyChrono.git
