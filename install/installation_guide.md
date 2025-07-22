@@ -1,49 +1,86 @@
-# PyChrono Installation Guide
+# 🚀 PyChrono Installation Guide
 
-This guide walks you through the installation of [PyChrono](https://projectchrono.org/) for this project.
+This guide walks you through the installation of [PyChrono](https://projectchrono.org/) for use in this project.
 
+---
 
-# Install Anaconda or Miniconda distribution
+## 🐍 1. Install Anaconda or Miniconda
 
-check the [installation guide](https://www.anaconda.com/docs/getting-started/miniconda/install#macos-linux-installation)
+Follow the official [Miniconda installation guide](https://www.anaconda.com/docs/getting-started/miniconda/install#macos-linux-installation) for your platform (Windows, macOS, or Linux).
 
-# Automated Setup Procedure for Windows Users
+---
+
+## ⚙️ 2. Automated Setup
+
+### ✅ Windows Users
 
 1. Download the file `install_pychrono_windows.txt`.
-2. Rename the file to `install_pychrono_windows.bat`.
-3. Open Command Prompt and run:
+2. Rename it to `install_pychrono_windows.bat`.
+3. Open **Command Prompt** and run:
+
    ```bash
    install_pychrono_windows.bat
-4. [Skip to Step 5](#step-5-copy-the-demos-and-test-the-installation)
+   ```
 
-# Manual Setup Procedure (for all users)
+4. ➡️ [Skip to Step 5: Copy the Demos and Test the Installation](#📁-5-copy-the-demos-and-test-the-installation)
 
-## Step 1: Add the conda-forge channel
-Open a terminal window. For Windows users, please use Powershell.
+---
+
+### ✅ Linux Users
+
+1. Download the file `install_pychrono_linux.sh`.
+2. Open a terminal and make the script executable:
+
+   ```bash
+   chmod +x install_pychrono_linux.sh
+   ```
+
+3. Run the script:
+
+   ```bash
+   ./install_pychrono_linux.sh
+   ```
+
+4. ➡️ [Skip to Step 6: Run the Code](#🚦-6-run-the-code)
+
+---
+
+## 🛠 3. Manual Setup Procedure (All Platforms)
+
+### 🔧 Step 1: Add the `conda-forge` channel
+
+Open a terminal (Windows users: use PowerShell or Anaconda Prompt):
 
 ```bash
 conda config --add channels http://conda.anaconda.org/conda-forge
 ```
 
-## Step 2: Create a new environment for PyChrono
+---
+
+### 🔧 Step 2: Create a new Conda environment
 
 ```bash
 conda create -n chrono python=3.10
 ```
-You can replace "chrono" with the name you want.
 
-To enter the environment:
+Activate the environment:
+
 ```bash
 conda activate chrono
 ```
-To leave the environment:
+
+To deactivate:
+
 ```bash
 conda deactivate
 ```
-In the following steps, please stay in the created environment so that all the dependencies needed will stay in this environment.
 
+**Stay in the environment** during the following steps.
 
-## Step 3: Install dependencies for PyChrono
+---
+
+### 🔧 Step 3: Install PyChrono dependencies
+
 ```bash
 conda install -c conda-forge numpy=1.24.0
 conda install -c conda-forge matplotlib
@@ -52,44 +89,68 @@ conda install -c conda-forge pytz
 conda install -c conda-forge scipy
 ```
 
-## Step 4: Download Pychrono package and install
-Visit the [package repo](https://anaconda.org/projectchrono/pychrono/files?page=3)
+---
 
-(Choose the file with label "release")
-For MacOS users, please click to download osx-arm64/pychrono-8.0.0-py310_2471.tar.bz2
+### 🔧 Step 4: Download and install PyChrono package
 
-For Windows users, please download win-64/pychrono-8.0.0-py310_0.tar.bz2
+Visit the [package repo](https://anaconda.org/projectchrono/pychrono/files?page=3) and download the correct version for your platform:
 
-For Linux users, please download linux-64/pychrono-8.0.0-py310_0.tar.bz2
+- **macOS**: `osx-arm64/pychrono-8.0.0-py310_2471.tar.bz2`
+- **Windows**: `win-64/pychrono-8.0.0-py310_0.tar.bz2`
+- **Linux**: `linux-64/pychrono-8.0.0-py310_0.tar.bz2`
 
-After the download completes, navigate to the Downloads folder and install PyChrono
+After downloading, navigate to the folder (e.g., Downloads) and run:
+
 ```bash
-cd Downloads/
+cd ~/Downloads
 conda install pychrono-8.0.0-py310_2471.tar.bz2
 ```
 
-for Mac users:
+> 🧠 **Note (macOS users)**: You may also need to set the `PYTHONPATH`:
+
 ```bash
 export PYTHONPATH=$HOME/miniconda3/envs/chrono/share/chrono/python
 ```
 
-## Step 5: Copy the demos and test the installation
-First, navigate to the folder you want to keep the demos files.
-```bash
-mkdir pychrono_demos
-cd pychrono_demos/
-cp -r $PYTHONPATH/pychrono/demos/* .
-```
-Now you can run the demos to check if the installation is correct.
-For example,
-```bash
-cd mbs/
-python demo_MBS_revolute.py
-```
-## Step 6: Run the code
-Clone the repo and navigate to the project folder.
-```bash
-git clone https://github.com/andrealaffly/UAV_Sim_PyChrono.git
-cd UAV_Sim_PyChrono
-python main.py
-```
+---
+
+## 📁 5. Copy the Demos and Test the Installation
+
+1. Navigate to the folder where you want to save the demo files:
+
+   ```bash
+   mkdir ~/pychrono_demos
+   cd ~/pychrono_demos
+   ```
+
+2. Copy the demo files:
+
+   ```bash
+   cp -r $PYTHONPATH/pychrono/demos/* .
+   ```
+
+3. Run a demo to verify the installation:
+
+   ```bash
+   cd mbs
+   python demo_MBS_revolute.py
+   ```
+
+---
+
+## 🚦 6. Run the Code
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/andrealaffly/UAV_Sim_PyChrono.git
+   cd UAV_Sim_PyChrono
+   ```
+
+2. Run the simulation:
+
+   ```bash
+   python main.py
+   ```
+
+---
