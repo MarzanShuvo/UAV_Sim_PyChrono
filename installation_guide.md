@@ -75,7 +75,7 @@ For example,
 cd mbs/
 python demo_MBS_revolute.py
 ```
-## Step 6: Try to run the code
+## Step 6: Run the code
 Clone the repo and navigate to the project folder.
 ```bash
 git clone https://github.com/andrealaffly/UAV_Sim_PyChrono.git
