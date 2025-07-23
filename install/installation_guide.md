@@ -2,6 +2,21 @@
 
 This guide walks you through the installation of [PyChrono](https://projectchrono.org/) for use in this project.
 
+> [!NOTE]  
+> Highlights information that users should take into account, even when skimming.
+
+> [!TIP]
+> Optional information to help a user be more successful.
+
+> [!IMPORTANT]  
+> Crucial information necessary for users to succeed.
+
+> [!WARNING]  
+> Critical content demanding immediate user attention due to potential risks.
+
+> [!CAUTION]
+> Negative potential consequences of an action.
+
 ---
 
 ## 🐍 1. Install Anaconda or Miniconda
@@ -42,6 +57,48 @@ Follow the official [Miniconda installation guide](https://www.anaconda.com/docs
    ```
 
 4. ➡️ [Skip to Step 6: Run the Code](#🚦-6-run-the-code)
+
+---
+
+### ✅ MacOS Users
+
+1. Download the file `install_pychrono_macos.sh`.
+2. Open a terminal and make the script executable:
+
+   ```bash
+   chmod +x install_pychrono_macos.sh
+   ```
+
+3. Run the script:
+
+   ```bash
+   ./install_pychrono_macos.sh
+   ```
+
+4. Initialize Conda for zsh shell
+   ```bash
+   /opt/miniconda3/bin/conda init zsh
+   ```
+
+5. Restart the shell
+   ```bash
+   exec zsh
+   ```
+
+6. Activate the PyChrono Conda environment
+   ```bash
+   conda activate chrono
+   ```
+
+7. Set the PYTHONPATH environment variable
+   ``` bash
+   export PYTHONPATH=$(conda info --base)/envs/chrono/share/chrono/python
+   ```
+
+8. ➡️ [Skip to Step 6: Run the Code](#🚦-6-run-the-code)
+
+> [!NOTE]  
+> Steps 4-7 need to be run every time you want to use pychrono.
 
 ---
 
