@@ -20,9 +20,13 @@ class PIDGains:
     self.size_DATA = 50
     
     # **Translational** PID parameters 
-    self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
-    self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
-    self.KI_tran = np.matrix(1 * np.diag([1,1,1]))
+    # self.KP_tran = np.matrix(1 * np.diag([5,5,6]))
+    # self.KD_tran = np.matrix(1 * np.diag([8,8,3]))
+    # self.KI_tran = np.matrix(1 * np.diag([1,1,1]))
+
+    self.KP_tran = np.matrix(1 * np.diag([77,84,35]))
+    self.KD_tran = np.matrix(1 * np.diag([34,29,6]))
+    self.KI_tran = np.matrix(1 * np.diag([129,53,53]))
 
     # **Rotational** PID parameters
     self.KP_rot = np.matrix(1 * np.diag([100,100,50]))
