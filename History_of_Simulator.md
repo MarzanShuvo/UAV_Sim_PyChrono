@@ -9,7 +9,7 @@
 
 ### 2025
 - **January 2025**  
-  The paper [An Open-Source Framework to Design, Tune, and Fly Nonlinear Control Systems for Autonomous UAVs](https://lafflitto.com/Documents/LAfflitto_Control_System_AIAA_Conference.pdf) by M. Gramuglia, G. M. Kumar, and A. L'Afflitto is presented at AIAA SciTech in Orlando, FL.
+  The paper <a href="[https://example.com](https://lafflitto.com/Documents/LAfflitto_Control_System_AIAA_Conference.pdf)" target="_blank" rel="noopener noreferrer">An Open-Source Framework to Design, Tune, and Fly Nonlinear Control Systems for Autonomous UAVs</a> by M. Gramuglia, G. M. Kumar, and A. L'Afflitto is presented at AIAA SciTech in Orlando, FL.
 
 ---
 
