@@ -8,7 +8,7 @@ class MissionConfig:
   # Run the simulator in Wrapper mode (more simulations automatically run sequentially)
   wrapper_flag: bool = False
   # If True, perform real-time rendering of the simulation with Irrlicht
-  visualization_flag: bool = True
+  visualization_flag: bool = False
   # Dynamic camera options:
   # "fixed"
   # "default",
@@ -31,7 +31,7 @@ class MissionConfig:
   # "square_trajectory",
   # "rounded_rectangle_trajectory",
   # "piecewise_polynomial_trajectory"
-  trajectory_type: str = "rounded_rectangle_trajectory"
+  trajectory_type: str = "piecewise_polynomial_trajectory"
 
   # If the trajectory_type is "piecewise_polynomial_trajectory", then choose the trajectory file to run
   # Path relative to 'current_working_directory/params/user_defined_trajectory'
@@ -42,7 +42,7 @@ class MissionConfig:
   hover_after_trajectory_time_seconds: float = 5.0
 
   # Flag to add or remove the payload from the simulation
-  add_payload_flag: bool = True
+  add_payload_flag: bool = False
   # Payload types: 
   # "two_steel_balls"
   # "ten_steel_balls_in_two_lines"
